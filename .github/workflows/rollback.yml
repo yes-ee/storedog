@@ -2,6 +2,9 @@ name: Rollback Storedog Public ECR Tag
 
 on:
   workflow_dispatch:
+  push:
+    branches:
+      - chore/actions
 
 jobs:
   rollback-tag:
