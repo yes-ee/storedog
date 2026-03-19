@@ -45,10 +45,10 @@ jobs:
           echo "Targeting Tag: $PREV_TAG"
 
           # 이미지 매니페스트 가져오기
-          MANIFEST=$(aws ecr-public batch-get-image \
+          MANIFEST=$(aws ecr-public describe-images \
             --repository-name $REPO_NAME \
             --image-ids imageTag=$PREV_TAG \
-            --query 'images[0].imageManifest' \
+            --query 'imageDetails[0].imageManifest' \
             --output text)
 
           # 해당 매니페스트에 'latest' 태그 부여
