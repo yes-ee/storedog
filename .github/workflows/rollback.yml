@@ -44,20 +44,24 @@ jobs:
 
           echo "Targeting Tag: $PREV_TAG"
 
-          aws ecr-public describe-images \
+          IMAGE_DIGEST=$(aws ecr-public describe-images \
             --repository-name $REPO_NAME \
             --image-ids imageTag=$PREV_TAG \
-            --output json | jq -r '.imageDetails[0].imageManifest' > manifest.json
+            --query 'imageDetails[0].imageDigest' \
+            --output text)
 
-          echo "--- Manifest Content Preview ---"
-          head -c 100 manifest.json
-          echo -e "\n-------------------------------"
+          echo "Found Digest: $IMAGE_DIGEST"
 
-          # 파일 내용을 사용해 latest 태그 부여
+          MANIFEST=$(aws ecr-public batch-get-image \
+            --repository-name $REPO_NAME \
+            --image-ids imageTag=$PREV_TAG \
+            --query 'images[0].imageManifest' \
+            --output text)
+
           aws ecr-public put-image \
             --repository-name $REPO_NAME \
             --image-tag latest \
-            --image-manifest "$(cat manifest.json)"
+            --image-manifest "$MANIFEST"
 
           echo "Success: 'latest' tag now points to $PREV_TAG"
 
