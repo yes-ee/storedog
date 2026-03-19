@@ -44,18 +44,24 @@ jobs:
 
           echo "Targeting Tag: $PREV_TAG"
 
-          # 이미지 매니페스트 가져오기
-          MANIFEST=$(aws ecr-public describe-images \
+          # 매니페스트를 파일로 저장
+          aws ecr-public describe-images \
             --repository-name $REPO_NAME \
             --image-ids imageTag=$PREV_TAG \
             --query 'imageDetails[0].imageManifest' \
-            --output text)
+            --output text > manifest.json
 
-          # 해당 매니페스트에 'latest' 태그 부여
+          # 파일이 비어있는지 확인
+          if [ ! -s manifest.json ]; then
+            echo "Error: 매니페스트를 추출하지 못했습니다."
+            exit 1
+          fi
+
+          # 파일 내용을 사용하여 latest 태그 부여
           aws ecr-public put-image \
             --repository-name $REPO_NAME \
             --image-tag latest \
-            --image-manifest "$MANIFEST"
+            --image-manifest file://manifest.json
 
           echo "Success: 'latest' tag now points to $PREV_TAG"
 
