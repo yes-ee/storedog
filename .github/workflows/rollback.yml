@@ -1,0 +1,67 @@
+name: Rollback Storedog Public ECR Tag
+
+on:
+  workflow_dispatch:
+
+jobs:
+  rollback-tag:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: us-east-1 
+
+      - name: Get Previous Image Tag
+        id: get_tag
+        run: |
+          REPO_NAME="ye/storedog"
+          REGISTRY_ALIAS="q0h0t2f2"
+
+          echo "Searching for previous tag in $REPO_NAME..."
+
+          PREV_TAG=$(aws ecr-public describe-images \
+            --repository-name $REPO_NAME \
+            --registry-id $REGISTRY_ALIAS \
+            --query 'sort_by(imageDetails[?imageTags!=null], &imagePushedAt)[-2].imageTags[?@ != `latest`] | [0]' \
+            --output text)
+
+          if [ "$PREV_TAG" == "None" ] || [ -z "$PREV_TAG" ]; then
+            echo "Error: 롤백할 이전 이미지를 찾을 수 없습니다."
+            exit 1
+          fi
+
+          echo "tag=$PREV_TAG" >> $GITHUB_OUTPUT
+          echo "Found Previous Tag: $PREV_TAG"
+
+      - name: Retag Image as Latest
+        run: |
+          REPO_NAME="ye/storedog"
+          REGISTRY_ALIAS="q0h0t2f2"
+          PREV_TAG=${{ steps.get_tag.outputs.tag }}
+
+          echo "Targeting Tag: $PREV_TAG"
+
+          # 이미지 매니페스트 가져오기
+          MANIFEST=$(aws ecr-public batch-get-image \
+            --repository-name $REPO_NAME \
+            --registry-id $REGISTRY_ALIAS \
+            --image-ids imageTag=$PREV_TAG \
+            --query 'images[0].imageManifest' \
+            --output text)
+
+          # 해당 매니페스트에 'latest' 태그 부여
+          aws ecr-public put-image \
+            --repository-name $REPO_NAME \
+            --registry-id $REGISTRY_ALIAS \
+            --image-tag latest \
+            --image-manifest "$MANIFEST"
+
+          echo "Success: 'latest' tag now points to $PREV_TAG"
+
+      - name: Notification
+        run: |
+          echo "서버에서 아래 명령어를 실행하여 롤백을 완료하세요:"
+          echo "docker pull public.ecr.aws/q0h0t2f2/ye/storedog:latest"
