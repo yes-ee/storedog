@@ -1,4 +1,4 @@
-name: Rollback Storedog Public ECR Tag
+name: Rollback Storedog Private ECR Tag
 
 on:
   workflow_dispatch:
@@ -15,7 +15,7 @@ jobs:
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: us-east-1 
+          aws-region: ap-northeast-2
 
       - name: Get Previous Image Tag
         id: get_tag
@@ -24,7 +24,7 @@ jobs:
 
           echo "Searching for previous tag in $REPO_NAME..."
 
-          PREV_TAG=$(aws ecr-public describe-images \
+          PREV_TAG=$(aws ecr describe-images \
             --repository-name $REPO_NAME \
             --query 'sort_by(imageDetails[?imageTags!=null], &imagePushedAt)[-2].imageTags[?@ != `latest`] | [0]' \
             --output text)
@@ -44,28 +44,13 @@ jobs:
 
           echo "Targeting Tag: $PREV_TAG"
 
-          IMAGE_DIGEST=$(aws ecr-public describe-images \
-            --repository-name $REPO_NAME \
-            --image-ids imageTag=$PREV_TAG \
-            --query 'imageDetails[0].imageDigest' \
-            --output text)
+          MANIFEST=$(aws ecr batch-get-image --repository-name $REPO_NAME --image-ids imageTag=$PREV_TAG --query 'images[0].imageManifest' --output text)
 
-          echo "Found Digest: $IMAGE_DIGEST"
-
-          MANIFEST=$(aws ecr-public batch-get-image \
-            --repository-name $REPO_NAME \
-            --image-ids imageTag=$PREV_TAG \
-            --query 'images[0].imageManifest' \
-            --output text)
-
-          aws ecr-public put-image \
-            --repository-name $REPO_NAME \
-            --image-tag latest \
-            --image-manifest "$MANIFEST"
+          aws ecr put-image --repository-name $REPO_NAME --image-tag latest --image-manifest "$MANIFEST"
 
           echo "Success: 'latest' tag now points to $PREV_TAG"
 
       - name: Notification
         run: |
           echo "서버에서 아래 명령어를 실행하여 롤백을 완료하세요:"
-          echo "docker pull public.ecr.aws/q0h0t2f2/ye/storedog:latest"
+          echo "docker pull 065199070014.dkr.ecr.ap-northeast-2.amazonaws.com/ye/storedog:latest"
