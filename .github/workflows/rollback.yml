@@ -50,7 +50,20 @@ jobs:
 
           echo "Success: 'latest' tag now points to $PREV_TAG"
 
-      - name: Notification
-        run: |
-          echo "서버에서 아래 명령어를 실행하여 롤백을 완료하세요:"
-          echo "docker pull 065199070014.dkr.ecr.ap-northeast-2.amazonaws.com/ye/storedog:latest"
+      - name: Deploy to EC2
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USERNAME }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          port: 22
+          script: |
+            cd ~/storedog 
+
+            aws ecr get-login-password --region ap-northeast-2 | docker login --username AWS --password-stdin 065199070014.dkr.ecr.ap-northeast-2.amazonaws.com
+
+            docker compose -f docker-compose.dev.yml pull frontend
+
+            docker compose -f docker-compose.dev.yml up -d frontend
+
+            docker image prune -f
