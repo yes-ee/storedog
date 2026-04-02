@@ -2,9 +2,9 @@ name: Rollback Storedog Private ECR Tag
 
 on:
   workflow_dispatch:
-  push:
-    branches:
-      - chore/actions
+  # push:
+  #   branches:
+  #     - chore/actions
 
 jobs:
   rollback-tag:
@@ -60,10 +60,19 @@ jobs:
           script: |
             cd ~/storedog 
 
+            sed -i 's/^NEXT_PUBLIC_DD_VERSION_FRONTEND=.*/NEXT_PUBLIC_DD_VERSION_FRONTEND=1.3.5/' .env
+            sed -i 's/^DD_VERSION_ADS=.*/DD_VERSION_ADS=1.3.5/' .env
+
+            sudo rm -f ./services/backend/tmp/pids/server.pid || true
+
+            echo ".env 버전 수정 완료: 1.3.5"
+
             aws ecr get-login-password --region ap-northeast-2 | docker login --username AWS --password-stdin 065199070014.dkr.ecr.ap-northeast-2.amazonaws.com
 
             docker compose -f docker-compose.dev.yml pull frontend
 
-            docker compose -f docker-compose.dev.yml up -d frontend
+            docker compose -f docker-compose.dev.yml up -d --no-deps --force-recreate frontend ads
+
+            docker compose -f docker-compose.dev.yml restart service-proxy
 
             docker image prune -f
