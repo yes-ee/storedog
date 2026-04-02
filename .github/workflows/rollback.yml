@@ -72,4 +72,7 @@ jobs:
             docker compose -f docker-compose.dev.yml pull frontend
 
             docker compose -f docker-compose.dev.yml up -d --no-deps --force-recreate frontend ads
+
+            docker compose -f docker-compose.dev.yml restart service-proxy
+
             docker image prune -f
