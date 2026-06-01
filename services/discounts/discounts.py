@@ -30,6 +30,7 @@ logger.setLevel(logging.DEBUG)
 
 # get the BROKEN_DISCOUNTS environment variable, if it exists
 BROKEN_DISCOUNTS = os.getenv("BROKEN_DISCOUNTS")
+SLOW_DISCOUNTS = os.getenv("SLOW_DISCOUNTS")
 
 app = create_app()
 CORS(app)
@@ -127,6 +128,12 @@ def getDiscount():
             # Log the discount code
             logger.info(f"Discount code: {discount_code}")
             discount = Discount.query.filter_by(code=discount_code).first()
+
+            # Slow discounts feature flag is ENABLED, sleep 3~4 seconds
+            if SLOW_DISCOUNTS == "ENABLED":
+                delay = random.uniform(3, 4)
+                logger.info(f"Slow discounts enabled, sleeping for {delay:.2f}s")
+                time.sleep(delay)
 
             # Broken discounts feature flag is ENABLED, randomly error out
             if BROKEN_DISCOUNTS == "ENABLED" and random.choice([True, False]):
