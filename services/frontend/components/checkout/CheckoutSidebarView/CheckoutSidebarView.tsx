@@ -19,6 +19,8 @@ const CheckoutSidebarView: FC = () => {
   const [loadingSubmit, setLoadingSubmit] = useState(false)
   const [discountInput, setDiscountInput] = useState('')
   const [checkoutError, setCheckoutError] = useState(null)
+  const [discountSuccess, setDiscountSuccess] = useState<string | null>(null)
+  const [discountError, setDiscountError] = useState<string | null>(null)
   const { setSidebarView, closeSidebar } = useUI()
   const { cart: cartData, cartEmpty, cartInit, applyDiscount } = useCart()
   const {
@@ -33,13 +35,13 @@ const CheckoutSidebarView: FC = () => {
     cartData && {
       amount: Number(cartData.subtotalPrice),
       currencyCode: cartData.currency.code,
-    }
+    },
   )
   const { price: total } = usePrice(
     cartData && {
       amount: Number(cartData.totalPrice),
       currencyCode: cartData.currency.code,
-    }
+    },
   )
 
   async function handleSubmit(event: React.ChangeEvent<HTMLFormElement>) {
@@ -88,6 +90,8 @@ const CheckoutSidebarView: FC = () => {
 
   async function handleDiscount(event: React.ChangeEvent<HTMLFormElement>) {
     event.preventDefault()
+    setDiscountSuccess(null)
+    setDiscountError(null)
 
     if (!discountInput) {
       console.error('No discount input!')
@@ -98,7 +102,6 @@ const CheckoutSidebarView: FC = () => {
       const discountPath = process.env.NEXT_PUBLIC_DISCOUNTS_ROUTE
       const discountCode = discountInput.toUpperCase()
       const discountCodeUrl = `${discountPath}/discount-code?discount_code=${discountCode}`
-      // call discounts service
       const res = await fetch(discountCodeUrl)
 
       if (!res.ok) {
@@ -114,11 +117,12 @@ const CheckoutSidebarView: FC = () => {
 
       console.log('discount accepted', discount)
 
-      // always hardcode this to FREESHIP because that's all that's set up in spree
       await applyDiscount('FREESHIP')
 
       setDiscountInput('')
+      setDiscountSuccess(`Discount code "${discountCode}" applied!`)
     } catch (err) {
+      setDiscountError('Invalid or expired discount code.')
       datadogRum.addError(err, {
         discount_code: discountInput,
       })
@@ -184,6 +188,16 @@ const CheckoutSidebarView: FC = () => {
               Apply Discount
             </Button>
           </div>
+          {discountSuccess && (
+            <div className="mt-2 px-3 py-2 bg-green-100 border border-green-400 text-green-700 rounded text-sm">
+              {discountSuccess}
+            </div>
+          )}
+          {discountError && (
+            <div className="mt-2 px-3 py-2 bg-red-100 border border-red-400 text-red-700 rounded text-sm">
+              {discountError}
+            </div>
+          )}
         </form>
       </div>
 
